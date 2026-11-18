@@ -18,7 +18,7 @@ type StatCard = {
   label: string;
   value: string | number;
   icon: typeof BookOpen;
-  tone: 'teal' | 'gold' | 'red' | 'sky' | 'sand' | 'green' | 'purple';
+  tone: 'teal' | 'gold' | 'red' | 'sky' | 'sand' | 'green';
   sub?: string;
 };
 
@@ -135,11 +135,26 @@ export function ReportsManager({ setNotice }: { setNotice: (n: Notice) => void }
     if (filterHalqa !== 'all') query = query.eq('halaqa_id', filterHalqa);
     if (filterStudent !== 'all') query = query.eq('student_id', filterStudent);
 
-    const { data, error } = await query.order('created_at', { ascending: false }).limit(1000);
-    if (error) {
-      setNotice({ type: 'error', text: 'تعذر تحميل التقارير.' });
+    const allRows: unknown[] = [];
+    let offset = 0;
+    let loadError: unknown = null;
+
+    while (true) {
+      const { data, error } = await query
+        .order('created_at', { ascending: false })
+        .range(offset, offset + 999);
+      if (error) {
+        loadError = error;
+        break;
+      }
+      const batch = data ?? [];
+      allRows.push(...batch);
+      if (batch.length < 1000) break;
+      offset += 1000;
     }
-    setRows((data ?? []) as unknown as DayRecitationRow[]);
+
+    if (loadError) setNotice({ type: 'error', text: 'تعذر تحميل التقارير.' });
+    setRows(allRows as DayRecitationRow[]);
     setLoading(false);
   }, [filterSession, filterTeacher, filterHalqa, filterStudent, setNotice]);
 
@@ -214,7 +229,7 @@ export function ReportsManager({ setNotice }: { setNotice: (n: Notice) => void }
     { label: 'سور تحتاج إعادة', value: surahsNeedingRevision, icon: RotateCcw, tone: 'gold' },
     { label: 'سور غير منضبطة', value: surahsNotReady, icon: AlertTriangle, tone: 'red' },
     { label: 'إجمالي الأخطاء', value: totalMistakes, icon: AlertCircle, tone: 'red', sub: `${errorPerFace.toFixed(2)} لكل وجه` },
-    { label: 'إجمالي الترددات', value: totalHesitations, icon: Clock3, tone: 'purple', sub: `${hesitPerFace.toFixed(2)} لكل وجه` },
+    { label: 'إجمالي الترددات', value: totalHesitations, icon: Clock3, tone: 'gold', sub: `${hesitPerFace.toFixed(2)} لكل وجه` }
   ];
 
   // Surah report aggregation

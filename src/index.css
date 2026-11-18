@@ -418,3 +418,8 @@ h1 em { font-style: normal; color: #024f63; }
   .mushaf-jump input { width: 70px; }
   .mushaf-page-area { padding: 16px 6px 30px; }
 }
+
+.recitation-notes-label { display: grid; gap: 7px; color: #53676b; font-size: 11px; }
+.recitation-notes-label textarea { width: 100%; resize: vertical; min-height: 76px; border: 1px solid #dfe8e5; border-radius: 10px; padding: 10px 12px; background: #fbfdfc; color: #2e464a; font: inherit; font-size: 12px; line-height: 1.7; }
+.recitation-notes-label textarea:focus { outline: 2px solid rgba(2, 79, 99, .14); border-color: #024f63; }
+.saved-entry-notes { grid-column: 1 / -1; color: #718087; font-size: 10px; line-height: 1.6; }

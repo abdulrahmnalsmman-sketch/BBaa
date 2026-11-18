@@ -236,7 +236,7 @@ export function TeacherHalqaReports({ user, setNotice }: { user: Profile; setNot
                 <strong className="reports-stat-value">{totalMistakes}</strong>
               </div>
             </div>
-            <div className="reports-stat-card tone-purple">
+            <div className="reports-stat-card tone-gold">
               <div className="reports-stat-icon"><Clock3 size={20} /></div>
               <div className="reports-stat-body">
                 <span className="reports-stat-label">إجمالي الترددات</span>

@@ -838,7 +838,7 @@ function SessionsManager({ setNotice }: { setNotice: (n: Notice) => void }) {
   const [date, setDate] = useState('');
   const [start, setStart] = useState('18:30');
   const [end, setEnd] = useState('20:00');
-  const [targetJuz, setTargetJuz] = useState('110');
+  const [targetJuz, setTargetJuz] = useState('');
   const [numHalqat, setNumHalqat] = useState('');
   const [dayNotes, setDayNotes] = useState('');
   const load = async () => { const { data } = await supabase.from('yawm_sessions').select('id,name,session_date,start_time,end_time,status,target_juz,num_halqat,notes').is('archived_at', null).order('session_date', { ascending: true }); setSessions((data ?? []) as YawmSession[]); };
@@ -867,7 +867,7 @@ function SessionsManager({ setNotice }: { setNotice: (n: Notice) => void }) {
     {showForm && <InlineForm title="إنشاء يوم سرد" onSubmit={add} onCancel={() => setShowForm(false)}>
       <label>اسم اليوم<input value={name} onChange={(e) => setName(e.target.value)} placeholder="مثال: يوم السرد الأسبوعي" required /></label>
       <div className="form-grid"><label>التاريخ<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label><label>وقت البداية<input type="time" value={start} onChange={(e) => setStart(e.target.value)} required /></label><label>وقت النهاية<input type="time" value={end} onChange={(e) => setEnd(e.target.value)} required /></label></div>
-      <div className="form-grid"><label>المستهدف العام من الأجزاء<input type="number" value={targetJuz} onChange={(e) => setTargetJuz(e.target.value)} placeholder="30" required /></label><label>عدد الحلقات<input type="number" value={numHalqat} onChange={(e) => setNumHalqat(e.target.value)} placeholder="عدد الحلقات" /></label></div>
+      <div className="form-grid"><label>المستهدف العام من أجزاء الطلاب<input type="number" min="0" step="0.01" value={targetJuz} onChange={(e) => setTargetJuz(e.target.value)} placeholder="يُحسب من مجموع مقررات الطلاب" /></label><label>عدد الحلقات<input type="number" value={numHalqat} onChange={(e) => setNumHalqat(e.target.value)} placeholder="عدد الحلقات" /></label></div>
       <label>ملاحظات<input value={dayNotes} onChange={(e) => setDayNotes(e.target.value)} placeholder="ملاحظات إضافية" /></label>
     </InlineForm>}
     <div className="session-management-grid">

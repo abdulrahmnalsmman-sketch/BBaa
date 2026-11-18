@@ -95,7 +95,7 @@ function SessionDetailsTab({ session, setSession, setNotice }: { session: YawmSe
           <label>النهاية<input type="time" value={end} onChange={(e) => setEnd(e.target.value)} required /></label>
         </div>
         <div className="form-grid">
-          <label>المستهدف العام من الأجزاء<input type="number" value={targetJuz} onChange={(e) => setTargetJuz(e.target.value)} placeholder="30" /></label>
+          <label>المستهدف العام من أجزاء الطلاب<input type="number" min="0" step="0.01" value={targetJuz} onChange={(e) => setTargetJuz(e.target.value)} placeholder="مجموع أجزاء مقررات الطلاب" /></label>
           <label>عدد الحلقات<input type="number" value={numHalqat} onChange={(e) => setNumHalqat(e.target.value)} placeholder="عدد الحلقات" /></label>
         </div>
         <label>ملاحظات<input value={dayNotes} onChange={(e) => setDayNotes(e.target.value)} placeholder="ملاحظات إضافية" /></label>
