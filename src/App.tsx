@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import type {
   Profile, QuranPortion, DayRecitationRow, Role, SessionStatus, Student,
-  StudentEditHistory, Surah, SupervisorPermissions, YawmSession, PendingStudent,
+  StudentEditHistory, Surah, UserAccessPermissions, YawmSession, PendingStudent,
 } from '@/types';
 import { SettingsManager as SettingsPanel } from '@/components/SettingsManager';
 import { SessionDetailManager } from '@/components/SessionDetailManager';
@@ -216,19 +216,18 @@ function AdminApp({ user, notice, setNotice }: { user: Profile; notice: Notice; 
 function SupervisorApp({ user, notice, setNotice }: { user: Profile; notice: Notice; setNotice: (n: Notice) => void }) {
   const [view, setView] = useState<View>('overview');
   const [mobileNav, setMobileNav] = useState(false);
-  const [perms, setPerms] = useState<SupervisorPermissions | null>(null);
+  const [perms, setPerms] = useState<UserAccessPermissions | null>(null);
   const { signOut } = useAuth();
   useEffect(() => {
-    void supabase.from('supervisor_permissions').select('*').eq('profile_id', user.id).maybeSingle()
-      .then(({ data }) => setPerms(data as SupervisorPermissions | null));
+    void supabase.from('user_access_permissions').select('*').eq('profile_id', user.id).maybeSingle()
+      .then(({ data }) => setPerms(data as UserAccessPermissions | null));
   }, [user.id]);
   const nav = adminNav.filter((item) => {
-    if (item.key === 'settings') return false;
-    if (item.key === 'users') return false;
-    if (item.key === 'archived') return false;
-    if (item.key === 'teachers') return perms?.can_view_teachers ?? false;
+    if (item.key === 'settings' || item.key === 'users' || item.key === 'archived') return false;
+    if (item.key === 'teachers') return perms?.can_manage_users ?? false;
     if (item.key === 'reports') return perms?.can_view_reports ?? false;
-    if (item.key === 'sessions') return perms?.can_manage_sessions ?? false;
+    if (item.key === 'sessions') return perms?.can_view_halqat ?? false;
+    if (item.key === 'students') return perms?.can_view_students ?? false;
     return true;
   });
   return <AppFrame role="supervisor" user={user} view={view} setView={setView} mobileNav={mobileNav} setMobileNav={setMobileNav} notice={notice} setNotice={setNotice} onLogout={() => void signOut()} nav={nav}><SupervisorView view={view} user={user} setNotice={setNotice} perms={perms} setView={setView} /></AppFrame>;
@@ -1132,14 +1131,14 @@ function ChangePasswordForm({ user, onClose, setNotice }: { user: Profile; onClo
 
 /* ── Supervisor View ─────────────────────────────────────────── */
 
-function SupervisorView({ view, user, setNotice, perms, setView }: { view: View; user: Profile; setNotice: (n: Notice) => void; perms: SupervisorPermissions | null; setView: (v: View) => void }) {
+function SupervisorView({ view, user, setNotice, perms, setView }: { view: View; user: Profile; setNotice: (n: Notice) => void; perms: UserAccessPermissions | null; setView: (v: View) => void }) {
   if (view === 'students' && (perms?.can_view_students ?? false)) return <StudentsManager setNotice={setNotice} />;
-  if (view === 'sessions' && (perms?.can_manage_sessions ?? false)) return <SessionsManager setNotice={setNotice} />;
+  if (view === 'sessions' && (perms?.can_view_halqat ?? false)) return <SessionsManager setNotice={setNotice} />;
   if (view === 'reports' && (perms?.can_view_reports ?? false)) return <ReportsManager setNotice={setNotice} />;
   return <SupervisorOverview user={user} perms={perms} />;
 }
 
-function SupervisorOverview({ user, perms }: { user: Profile; perms: SupervisorPermissions | null }) {
+function SupervisorOverview({ user, perms }: { user: Profile; perms: UserAccessPermissions | null }) {
   const [stats, setStats] = useState({ students: 0, teachers: 0, sessions: 0, recitations: 0 });
   const loadStats = useCallback(async () => {
     const [{ count: students }, { count: teachers }, { count: sessions }, { count: recitations }] = await Promise.all([
@@ -1168,8 +1167,8 @@ function SupervisorOverview({ user, perms }: { user: Profile; perms: SupervisorP
     </section>
     <section className="stats-grid">
       {perms?.can_view_students && <Stat label="إجمالي الطلاب" value={stats.students} icon={<Users size={19} />} tone="gold" />}
-      {perms?.can_view_teachers && <Stat label="المعلمون النشطون" value={stats.teachers} icon={<ShieldCheck size={19} />} tone="teal" />}
-      <Stat label="أيام السرد" value={stats.sessions} icon={<CalendarDays size={19} />} tone="sky" />
+      {perms?.can_manage_users && <Stat label="المعلمون النشطون" value={stats.teachers} icon={<ShieldCheck size={19} />} tone="teal" />}
+      {perms?.can_view_halqat && <Stat label="أيام السرد" value={stats.sessions} icon={<CalendarDays size={19} />} tone="sky" />}
       {perms?.can_view_reports && <Stat label="التسميعات" value={stats.recitations} icon={<BookOpen size={19} />} tone="sand" />}
     </section>
   </>;

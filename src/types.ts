@@ -39,6 +39,28 @@ export type SupervisorPermissions = {
   can_manage_sessions: boolean;
 };
 
+export type UserAccessPermissions = {
+  profile_id: string;
+  can_view_students: boolean;
+  can_add_students: boolean;
+  can_edit_students: boolean;
+  can_delete_students: boolean;
+  can_view_halqat: boolean;
+  can_add_halqat: boolean;
+  can_edit_halqat: boolean;
+  can_delete_halqat: boolean;
+  can_record_attendance: boolean;
+  can_edit_attendance: boolean;
+  can_view_reports: boolean;
+  can_export_reports: boolean;
+  can_view_fees: boolean;
+  can_collect_fees: boolean;
+  can_manage_users: boolean;
+  access_scope: 'all_halqat' | 'selected_halqat';
+  selected_halqat_ids: string[];
+  updated_at: string;
+};
+
 export type Profile = {
   id: string;
   email: string;

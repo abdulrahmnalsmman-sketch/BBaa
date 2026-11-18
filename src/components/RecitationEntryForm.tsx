@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Check, Minus, Plus, RotateCcw, X, AlertCircle, Clock } from 'lucide-react';
+import { Check, Minus, Plus, RotateCcw, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { QuranSurah, RecitationStatus } from '@/types';
 import { JUZ_INDEX, formatAyahRange, getJuzEntriesForRange } from '@/lib/juzIndex';
@@ -18,6 +18,7 @@ type SavedEntry = {
   status: RecitationStatus;
   mistakes: number;
   hesitations: number;
+  notes: string;
 };
 
 export function RecitationEntryForm({
@@ -34,6 +35,7 @@ export function RecitationEntryForm({
 }) {
   const [mistakes, setMistakes] = useState(0);
   const [hesitations, setHesitations] = useState(0);
+  const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedEntries, setSavedEntries] = useState<SavedEntry[]>([]);
   const [currentSurahIndex, setCurrentSurahIndex] = useState(0);
@@ -58,7 +60,7 @@ export function RecitationEntryForm({
   const loadSaved = useCallback(async () => {
     const { data } = await supabase
       .from('recitation_entries')
-      .select('id,surah_id,status,mistakes,hesitations')
+      .select('id,surah_id,status,mistakes,hesitations,notes')
       .eq('session_id', sessionId)
       .eq('student_id', studentId)
       .order('created_at', { ascending: true });
@@ -79,6 +81,7 @@ export function RecitationEntryForm({
   useEffect(() => {
     setMistakes(0);
     setHesitations(0);
+    setNotes('');
   }, [currentSurahIndex]);
 
   const saveStatus = async (status: RecitationStatus) => {
@@ -88,6 +91,7 @@ export function RecitationEntryForm({
     const surahName = currentSurah.name;
     const currentMistakes = mistakes;
     const currentHesitations = hesitations;
+    const currentNotes = notes.trim();
 
     const { data, error } = await supabase.rpc('teacher_save_recitation_entry', {
       p_session_id: sessionId,
@@ -98,7 +102,7 @@ export function RecitationEntryForm({
       p_surah_to: surahId,
       p_mistakes: currentMistakes,
       p_hesitations: currentHesitations,
-      p_notes: '',
+      p_notes: currentNotes,
     });
 
     if (error || !data) {
@@ -113,6 +117,7 @@ export function RecitationEntryForm({
       status,
       mistakes: currentMistakes,
       hesitations: currentHesitations,
+      notes: currentNotes,
     };
     setLastSavedEntry(entry);
     setSavedEntries((prev) => {
@@ -130,29 +135,15 @@ export function RecitationEntryForm({
     setSaving(false);
   };
 
-  const undo = async () => {
+  const editLastSaved = () => {
     if (!lastSavedEntry || saving) return;
-    const entryToDelete = lastSavedEntry;
-    setSaving(true);
-    const { error } = await supabase
-      .from('recitation_entries')
-      .delete()
-      .eq('id', entryToDelete.id);
-
-    if (error) {
-      setSaving(false);
-      setNotice({ type: 'error', text: 'تعذر التراجع عن آخر رصد.' });
-      return;
-    }
-
-    setSavedEntries((prev) => prev.filter((e) => e.id !== entryToDelete.id));
-    const undoneIndex = rangeSurahs.findIndex((s) => s.id === entryToDelete.surah_id);
-    if (undoneIndex >= 0) setCurrentSurahIndex(undoneIndex);
-    setLastSavedEntry(null);
-    setMistakes(0);
-    setHesitations(0);
-    setSaving(false);
-    setNotice({ type: 'success', text: 'تم التراجع عن آخر رصد.' });
+    const savedIndex = rangeSurahs.findIndex((s) => s.id === lastSavedEntry.surah_id);
+    if (savedIndex < 0) return;
+    setCurrentSurahIndex(savedIndex);
+    setMistakes(lastSavedEntry.mistakes);
+    setHesitations(lastSavedEntry.hesitations);
+    setNotes(lastSavedEntry.notes);
+    setNotice({ type: 'success', text: 'يمكنك تعديل آخر رصد ثم تأكيد حالته من جديد.' });
   };
 
   // Per-student counters
@@ -187,7 +178,7 @@ export function RecitationEntryForm({
         <div className="surah-big-name">
           <Check size={28} />
           <h2>تم تسميع جميع سور {studentName}</h2>
-          <p>{doneCount} سورة مكتملة · {facesDone.toFixed(1)} وجه منجز</p>
+          <p>{doneCount} سورة مؤكدة · {repeatCount} تحتاج إعادة · {notReadyCount} غير جاهزة · {facesDone.toFixed(1)} وجه منجز</p>
         </div>
         <button className="primary-button" style={{ width: '100%', justifyContent: 'center' }} onClick={onStudentComplete}>
           الانتقال للطالب التالي
@@ -235,6 +226,11 @@ export function RecitationEntryForm({
         <Counter label="الترددات" value={hesitations} onChange={setHesitations} />
       </div>
 
+      <label className="recitation-notes-label">
+        ملاحظات المعلم
+        <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={500} placeholder="أضف ملاحظة مختصرة عند الحاجة" rows={3} />
+      </label>
+
       {/* Three status buttons */}
       <div className="status-buttons">
         <button
@@ -266,8 +262,8 @@ export function RecitationEntryForm({
       {/* Undo + saving indicator */}
       <div className="recitation-actions-row">
         {lastSavedEntry && (
-          <button type="button" className="undo-btn" disabled={saving} onClick={() => void undo()}>
-            <RotateCcw size={16} /> تراجع عن آخر رصد
+          <button type="button" className="undo-btn" disabled={saving} onClick={editLastSaved}>
+            <RotateCcw size={16} /> تعديل آخر رصد
           </button>
         )}
         {saving && <span className="saving-indicator"><span className="loading-spinner" /> جارٍ الحفظ...</span>}
@@ -286,6 +282,7 @@ export function RecitationEntryForm({
                 {(e.mistakes > 0 || e.hesitations > 0) && (
                   <span className="saved-entry-counters">{e.mistakes} خطأ · {e.hesitations} تردد</span>
                 )}
+                {e.notes && <span className="saved-entry-notes">{e.notes}</span>}
               </div>
             );
           })}
