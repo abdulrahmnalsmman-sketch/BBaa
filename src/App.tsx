@@ -944,8 +944,8 @@ function UsersManager({ setNotice }: { setNotice: (n: Notice) => void }) {
   const [showPwd, setShowPwd] = useState<Profile | null>(null);
 
   const load = async () => {
-    const { data } = await supabase.from('profiles').select('id,email,display_name,role,is_active,username').order('created_at');
-    setUsers((data ?? []) as Profile[]);
+    const { data, error } = await supabase.rpc('admin_list_users_with_last_signin');
+    if (!error) setUsers((data ?? []) as Profile[]);
   };
   useEffect(() => { void load(); }, []);
 
@@ -976,7 +976,7 @@ function UsersManager({ setNotice }: { setNotice: (n: Notice) => void }) {
       {visibleUsers.map((u) => <article className="user-management-card panel-card" key={u.id}>
         <div className="user-card-header"><div className="avatar user-card-avatar">{u.display_name.charAt(0)}</div><div><h2>{u.display_name}</h2><span>{u.username || u.email}</span></div></div>
         <div className="user-badges"><span className={`role-badge ${u.role}`}>{roleLabels[u.role]}</span><span className={`state-badge ${u.is_active ? 'active' : 'paused'}`}><i />{u.is_active ? 'نشط' : 'موقوف'}</span></div>
-        <p className="last-login">آخر دخول: غير مسجل في الحساب</p>
+        <p className="last-login">آخر دخول: {formatLastLogin(u.last_sign_in_at)}</p>
         {u.role !== 'admin' && <div className="user-card-actions">
           <button onClick={() => setEditingUser(u)}><Pencil size={15} /> تعديل</button>
           <button onClick={() => setShowPerms(u)}><Settings size={15} /> الصلاحيات</button>
@@ -988,6 +988,13 @@ function UsersManager({ setNotice }: { setNotice: (n: Notice) => void }) {
       {visibleUsers.length === 0 && <div className="empty-state panel-card">لا توجد حسابات مطابقة للبحث.</div>}
     </div>
   </>;
+}
+
+function formatLastLogin(iso: string | null | undefined): string {
+  if (!iso) return 'لم يسجل الدخول بعد';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return 'غير متوفر';
+  return date.toLocaleDateString('ar', { day: 'numeric', month: 'short' }) + ' · ' + date.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' });
 }
 
 function CreateUserForm({ onCancel, onDone, setNotice }: { onCancel: () => void; onDone: () => void; setNotice: (n: Notice) => void }) {

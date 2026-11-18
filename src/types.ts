@@ -68,6 +68,13 @@ export type Profile = {
   role: Role;
   is_active: boolean;
   username: string | null;
+  last_sign_in_at?: string | null;
+  created_at?: string | null;
+};
+
+export type ProfileWithAuth = Profile & {
+  created_at: string;
+  last_sign_in_at: string | null;
 };
 
 export type Student = {
