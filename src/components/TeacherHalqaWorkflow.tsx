@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, Users, BookOpen, CheckCircle2, ChevronRight, UserPlus, Scan } from 'lucide-react';
+import { ChevronLeft, Users, BookOpen, CheckCircle2, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { QuranJuz, QuranSurah, Student, StudentCurriculumItem, YawmSession } from '@/types';
+import type { QuranSurah, Student, YawmSession } from '@/types';
 import { RecitationEntryForm } from '@/components/RecitationEntryForm';
-import { MushafReader } from '@/components/MushafReader';
 
 type Notice = { type: 'success' | 'error'; text: string } | null;
 type AttendanceStatus = 'present' | 'absent';
@@ -21,8 +20,6 @@ export function TeacherHalqaWorkflow({
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
   const [savingAttendance, setSavingAttendance] = useState(false);
   const [surahs, setSurahs] = useState<QuranSurah[]>([]);
-  const [juzList, setJuzList] = useState<QuranJuz[]>([]);
-  const [mushafStudent, setMushafStudent] = useState<{ name: string; items: StudentCurriculumItem[] } | null>(null);
   const [stage, setStage] = useState<Stage>('attendance');
   const [fromSurah, setFromSurah] = useState('');
   const [toSurah, setToSurah] = useState('');
@@ -30,7 +27,7 @@ export function TeacherHalqaWorkflow({
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const [{ data: rosterRows, error: rosterError }, { data: attRows }, { data: surahRows }, { data: juzRows }] = await Promise.all([
+    const [{ data: rosterRows, error: rosterError }, { data: attRows }, { data: surahRows }] = await Promise.all([
       supabase
         .from('session_student_assignments')
         .select('student_id, students(id, name)')
@@ -38,9 +35,7 @@ export function TeacherHalqaWorkflow({
         .eq('teacher_id', teacherId),
       supabase.from('attendance_records').select('student_id, status').eq('session_id', session.id),
       supabase.from('quran_surahs').select('*').order('surah_number'),
-      supabase.from('quran_juz').select('*').order('juz_number'),
     ]);
-    setJuzList((juzRows ?? []) as QuranJuz[]);
     if (rosterError) setNotice({ type: 'error', text: 'تعذر تحميل طلاب الحلقة.' });
 
     const roster = ((rosterRows ?? []) as unknown as { students: Pick<Student, 'id' | 'name'> | null }[])
@@ -194,14 +189,7 @@ export function TeacherHalqaWorkflow({
           </div>
 
           <div className="recitation-footer" style={{ marginTop: 0, marginBottom: '14px' }}>
-            <span>افتح مصحف المدينة داخل نطاق مقرر الطالب الحالي</span>
-            <button
-              className="secondary-button"
-              onClick={() => void openMushaf(current)}
-              disabled={!current}
-            >
-              <Scan size={16} /> مصحف المدينة
-            </button>
+            <span>حدد نطاق السور وابدأ تسميع الطالب الحالي</span>
           </div>
 
           {presentStudents.length > 0 && (
@@ -272,31 +260,6 @@ export function TeacherHalqaWorkflow({
           </div>
         </>
       )}
-
-      {mushafStudent && (
-        <MushafReader
-          teacherId={teacherId}
-          surahs={surahs}
-          juzList={juzList}
-          curriculumItems={mushafStudent.items}
-          activeStudentName={mushafStudent.name}
-          onClose={() => setMushafStudent(null)}
-          setNotice={setNotice}
-        />
-      )}
     </>
   );
-
-  async function openMushaf(student: Pick<Student, 'id' | 'name'> | undefined) {
-    if (!student) return;
-    const { data: curricula } = await supabase
-      .from('student_curricula')
-      .select('student_curriculum_items(*)')
-      .eq('student_id', student.id)
-      .eq('is_active', true);
-    const items = ((curricula ?? []) as unknown as { student_curriculum_items: StudentCurriculumItem[] }[])
-      .flatMap((c) => c.student_curriculum_items ?? [])
-      .sort((a, b) => a.sort_order - b.sort_order);
-    setMushafStudent({ name: student.name, items });
-  }
 }
