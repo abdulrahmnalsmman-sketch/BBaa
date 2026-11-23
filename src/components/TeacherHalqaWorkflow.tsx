@@ -33,7 +33,7 @@ export function TeacherHalqaWorkflow({
         .select('student_id, students(id, name)')
         .eq('session_id', session.id)
         .eq('teacher_id', teacherId),
-      supabase.from('attendance_records').select('student_id, status').eq('session_id', session.id),
+      supabase.from('attendance_records').select('student_id, status').eq('session_id', session.id).eq('teacher_id', teacherId),
       supabase.from('quran_surahs').select('*').order('surah_number'),
     ]);
     if (rosterError) setNotice({ type: 'error', text: 'تعذر تحميل طلاب الحلقة.' });
@@ -52,25 +52,6 @@ export function TeacherHalqaWorkflow({
     });
     setAttendance(map);
 
-    if (roster.length > 0) {
-      const { data: curricula } = await supabase
-        .from('student_curricula')
-        .select('student_curriculum_items(surah_id, sort_order, item_type)')
-        .eq('student_id', roster[0].id)
-        .eq('is_active', true);
-      const items = ((curricula ?? []) as unknown as { student_curriculum_items: { surah_id: string; sort_order: number; item_type: string }[] }[])
-        .flatMap((c) => c.student_curriculum_items ?? [])
-        .filter((i) => (i.item_type === 'surah' || i.item_type === 'ayah_range' || i.item_type === 'page_range') && i.surah_id)
-        .sort((a, b) => a.sort_order - b.sort_order);
-      if (items.length > 0) {
-        setFromSurah(items[0].surah_id);
-        setToSurah(items[items.length - 1].surah_id);
-      } else if (surahRows && surahRows.length > 0) {
-        const allSurahs = surahRows as QuranSurah[];
-        setFromSurah(allSurahs[0].id);
-        setToSurah(allSurahs[77].id);
-      }
-    }
     setLoading(false);
   }, [session.id, teacherId, setNotice]);
 
@@ -103,6 +84,29 @@ export function TeacherHalqaWorkflow({
   const presentStudents = students.filter((s) => attendance[s.id] === 'present');
   const allMarked = students.length > 0 && students.every((s) => attendance[s.id]);
   const current = presentStudents[currentIndex];
+
+  useEffect(() => {
+    if (!current || surahs.length === 0) return;
+    void (async () => {
+      const { data } = await supabase
+        .from('student_curricula')
+        .select('student_curriculum_items(surah_id, sort_order, item_type)')
+        .eq('student_id', current.id)
+        .eq('is_active', true);
+      const items = ((data ?? []) as unknown as { student_curriculum_items: { surah_id: string; sort_order: number; item_type: string }[] }[])
+        .flatMap((curriculum) => curriculum.student_curriculum_items ?? [])
+        .filter((item) => (item.item_type === 'surah' || item.item_type === 'ayah_range' || item.item_type === 'page_range') && item.surah_id)
+        .sort((a, b) => a.sort_order - b.sort_order);
+      if (items.length > 0) {
+        setFromSurah(items[0].surah_id);
+        setToSurah(items[items.length - 1].surah_id);
+      } else {
+        setFromSurah(surahs[0].id);
+        setToSurah(surahs[Math.min(77, surahs.length - 1)].id);
+      }
+    })();
+  }, [current, surahs]);
+
   const fromNumber = surahs.find((s) => s.id === fromSurah)?.surah_number ?? 1;
   const toNumber = surahs.find((s) => s.id === toSurah)?.surah_number ?? 114;
   const rangeValid = fromSurah && toSurah && fromNumber <= toNumber;
@@ -111,13 +115,13 @@ export function TeacherHalqaWorkflow({
 
   return (
     <>
-      <section className="welcome-row page-heading">
+      <section className="teacher-mobile-header">
         <div>
-          <div className="eyebrow"><span className="eyebrow-dot" /> حلقة اليوم</div>
+          <div className="eyebrow"><span className="eyebrow-dot" /> واجهة المعلم</div>
           <h1>{session.name}</h1>
           <p>{students.length} طالب · {presentStudents.length} حاضر</p>
         </div>
-        <button className="secondary-button" onClick={onBack}><ChevronLeft size={17} /> العودة</button>
+        <button className="secondary-button" onClick={onBack}><ChevronLeft size={17} /> الأيام</button>
       </section>
 
       <div className="halqa-steps">
@@ -206,7 +210,14 @@ export function TeacherHalqaWorkflow({
             </div>
           )}
 
-          <div className="panel-card recitation-panel">
+          <div className="panel-card recitation-panel teacher-recitation-shell">
+            {current && (
+              <div className="teacher-current-student">
+                <div className="teacher-current-avatar">{current.name.charAt(0)}</div>
+                <div><span>الطالب الحالي</span><strong>{current.name}</strong><small>الحلقة: {session.name}</small></div>
+                <span className="teacher-student-count">{currentIndex + 1} / {presentStudents.length}</span>
+              </div>
+            )}
             {!current && (
               <div className="empty-state">
                 <CheckCircle2 size={20} />

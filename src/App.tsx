@@ -5,7 +5,7 @@ import {
 import {
   AlertCircle, BarChart3, Bell, BookOpen, CalendarDays, CheckCircle2, ChevronLeft,
   Clock3, FileText, LayoutDashboard, LogOut, Menu, MoreHorizontal, Plus, Search,
-  ShieldCheck, Sparkles, UserPlus, Users, X, Settings, Upload, KeyRound, Eye,
+  ShieldCheck, Sparkles, UserPlus, Users, X, Settings, Upload, KeyRound, Eye, TrendingUp,
   UserCog, FileSpreadsheet, FileText as FileTextIcon, AlertTriangle, Check, Pencil, Globe, Archive,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -319,110 +319,114 @@ function AdminView({ view, user, setNotice, setView }: { view: View; user: Profi
   return <AdminOverview user={user} setNotice={setNotice} setView={setView} />;
 }
 
-function AdminOverview({ user, setNotice, setView }: { user: Profile; setNotice: (n: Notice) => void; setView: (v: View) => void }) {
-  const [stats, setStats] = useState({ students: 0, teachers: 0, supervisors: 0, sessions: 0, recitations: 0, revisions: 0 });
-  const [liveDay, setLiveDay] = useState<{ name: string; done: number; notReady: number; repeat: number; juzAchieved: number; targetJuz: number } | null>(null);
+type OverviewEntry = {
+  id: string;
+  session_id: string;
+  student_id: string;
+  status: 'done' | 'repeat' | 'not_ready';
+  mistakes: number;
+  hesitations: number;
+  created_at: string;
+  students: { name: string } | null;
+  quran_surahs: { name: string } | null;
+};
 
-  const loadStats = useCallback(async () => {
-    const [{ count: students }, { count: teachers }, { count: supervisors }, { count: sessions }, { count: recitations }, { count: revisions }] = await Promise.all([
+type OverviewSession = YawmSession & { assignmentCount: number; doneStudentCount: number; completionPct: number };
+
+function AdminOverview({ user, setNotice, setView }: { user: Profile; setNotice: (n: Notice) => void; setView: (v: View) => void }) {
+  const [stats, setStats] = useState({ students: 0, teachers: 0, halqat: 0, sessions: 0 });
+  const [entries, setEntries] = useState<OverviewEntry[]>([]);
+  const [sessions, setSessions] = useState<OverviewSession[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadOverview = useCallback(async () => {
+    setLoading(true);
+    const [studentsRes, teachersRes, halqatRes, sessionsRes, entriesRes, assignmentsRes] = await Promise.all([
       supabase.from('students').select('*', { count: 'exact', head: true }).eq('is_active', true),
       supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'teacher').eq('is_active', true),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'supervisor').eq('is_active', true),
-      supabase.from('yawm_sessions').select('*', { count: 'exact', head: true }),
-      supabase.from('recitation_entries').select('*', { count: 'exact', head: true }),
-      supabase.from('recitation_entries').select('*', { count: 'exact', head: true }).eq('status', 'repeat'),
+      supabase.from('halqat').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      supabase.from('yawm_sessions').select('id,name,session_date,start_time,end_time,status,target_juz,num_halqat').is('archived_at', null).order('session_date', { ascending: false }).limit(12),
+      supabase.from('recitation_entries').select('id,session_id,student_id,status,mistakes,hesitations,created_at,students!student_id(name),quran_surahs!surah_id(name)').order('created_at', { ascending: false }).limit(250),
+      supabase.from('session_student_assignments').select('session_id,student_id'),
     ]);
-    setStats({ students: students ?? 0, teachers: teachers ?? 0, supervisors: supervisors ?? 0, sessions: sessions ?? 0, recitations: recitations ?? 0, revisions: revisions ?? 0 });
-  }, []);
-
-  const loadLiveDay = useCallback(async () => {
-    const { data: openSession } = await supabase
-      .from('yawm_sessions')
-      .select('id,name,target_juz')
-      .eq('status', 'open')
-      .order('session_date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!openSession) { setLiveDay(null); return; }
-    const { data: entries } = await supabase
-      .from('recitation_entries')
-      .select('status,faces_recited')
-      .eq('session_id', (openSession as { id: string }).id);
-    const rows = (entries ?? []) as { status: string; faces_recited: number | null }[];
-    const done = rows.filter((r) => r.status === 'done').length;
-    const notReady = rows.filter((r) => r.status === 'not_ready').length;
-    const repeat = rows.filter((r) => r.status === 'repeat').length;
-    const totalFaces = rows.filter((r) => r.status === 'done').reduce((sum, r) => sum + (r.faces_recited ? Number(r.faces_recited) : 0), 0);
-    const juzAchieved = totalFaces / 20;
-    const s = openSession as { name: string; target_juz: number };
-    setLiveDay({ name: s.name, done, notReady, repeat, juzAchieved, targetJuz: s.target_juz ?? 0 });
-  }, []);
+    if (studentsRes.error || teachersRes.error || halqatRes.error || sessionsRes.error || entriesRes.error || assignmentsRes.error) {
+      setNotice({ type: 'error', text: 'تعذر تحميل مؤشرات لوحة المدير.' });
+      setLoading(false);
+      return;
+    }
+    const nextEntries = (entriesRes.data ?? []) as unknown as OverviewEntry[];
+    const assignmentRows = (assignmentsRes.data ?? []) as { session_id: string; student_id: string }[];
+    const assignmentMap = new Map<string, Set<string>>();
+    assignmentRows.forEach((row) => {
+      if (!assignmentMap.has(row.session_id)) assignmentMap.set(row.session_id, new Set());
+      assignmentMap.get(row.session_id)?.add(row.student_id);
+    });
+    const sessionRows = ((sessionsRes.data ?? []) as YawmSession[]).map((session) => {
+      const assigned = assignmentMap.get(session.id) ?? new Set<string>();
+      const doneStudents = new Set(nextEntries.filter((entry) => entry.session_id === session.id && entry.status === 'done').map((entry) => entry.student_id));
+      return { ...session, assignmentCount: assigned.size, doneStudentCount: doneStudents.size, completionPct: assigned.size ? Math.min(100, (doneStudents.size / assigned.size) * 100) : 0 };
+    });
+    setStats({ students: studentsRes.count ?? 0, teachers: teachersRes.count ?? 0, halqat: halqatRes.count ?? 0, sessions: sessionsRes.data?.length ?? 0 });
+    setEntries(nextEntries);
+    setSessions(sessionRows);
+    setLoading(false);
+  }, [setNotice]);
 
   useEffect(() => {
-    void loadStats();
-    void loadLiveDay();
-    // Realtime: refresh when recitation_entries change
-    const channel = supabase
-      .channel('admin-overview-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'recitation_entries' }, () => {
-        void loadLiveDay();
-        void loadStats();
-      })
-      .subscribe();
-    // Fallback polling every 5 seconds
-    const interval = setInterval(() => { void loadLiveDay(); }, 5000);
-    return () => { supabase.removeChannel(channel); clearInterval(interval); };
-  }, [loadStats, loadLiveDay]);
+    void loadOverview();
+    const channel = supabase.channel('admin-overview-realtime').on('postgres_changes', { event: '*', schema: 'public', table: 'recitation_entries' }, () => void loadOverview()).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [loadOverview]);
 
-  const achievementPct = liveDay && liveDay.targetJuz > 0 ? Math.min(100, (liveDay.juzAchieved / liveDay.targetJuz) * 100) : 0;
+  const completedStudentIds = new Set(entries.filter((entry) => entry.status === 'done').map((entry) => entry.student_id));
+  const completedStudents = completedStudentIds.size;
+  const incompleteStudents = Math.max(0, stats.students - completedStudents);
+  const doneEntries = entries.filter((entry) => entry.status === 'done').length;
+  const overallPct = entries.length ? Math.round((doneEntries / entries.length) * 100) : 0;
+  const performance = sessions.slice().reverse().map((session) => ({ label: new Date(session.session_date).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' }), value: session.completionPct }));
 
   return <>
-    <section className="welcome-row">
-      <div>
-        <div className="eyebrow"><span className="eyebrow-dot" /> لوحة التحكم · اليوم</div>
-        <h1>مرحبًا <em>{user.display_name}</em></h1>
-        <p>إليك ملخص إدارة حلقات يوم السرد وأحدث مؤشراتها.</p>
-      </div>
-      <button className="primary-button" onClick={() => setView('sessions')}><Plus size={19} /> إنشاء يوم همة</button>
+    <section className="welcome-row admin-welcome-row">
+      <div><div className="eyebrow"><span className="eyebrow-dot" /> لوحة التحكم · متابعة حية</div><h1>مرحبًا <em>{user.display_name}</em></h1><p>نظرة واضحة على الطلاب وأيام السرد وحالة التسميع الفعلية.</p></div>
+      <button className="primary-button" onClick={() => setView('sessions')}><Plus size={19} /> إنشاء يوم سرد</button>
     </section>
-    <section className="stats-grid">
-      <Stat label="إجمالي الطلاب" value={stats.students} icon={<Users size={19} />} tone="gold" />
-      <Stat label="المعلمون النشطون" value={stats.teachers} icon={<ShieldCheck size={19} />} tone="teal" />
-      <Stat label="المشرفون" value={stats.supervisors} icon={<Eye size={19} />} tone="sky" />
+    <section className="stats-grid admin-stats-grid">
+      <Stat label="الطلاب" value={stats.students} icon={<Users size={19} />} tone="gold" />
+      <Stat label="المعلمون" value={stats.teachers} icon={<ShieldCheck size={19} />} tone="teal" />
+      <Stat label="الحلقات" value={stats.halqat} icon={<Users size={19} />} tone="sky" />
       <Stat label="أيام السرد" value={stats.sessions} icon={<CalendarDays size={19} />} tone="sand" />
     </section>
-
-    {liveDay && (
-      <section className="panel-card live-day-card">
-        <div className="live-day-header">
-          <div><span className="eyebrow-small">يوم جارٍ الآن</span><h2>{liveDay.name}</h2></div>
-          <span className="live-pill"><i /> مباشر</span>
-        </div>
-        <div className="live-day-stats">
-          <div className="live-stat"><strong>{liveDay.done}</strong><span>تم</span></div>
-          <div className="live-stat"><strong>{liveDay.notReady}</strong><span>غير جاهز</span></div>
-          <div className="live-stat"><strong>{liveDay.repeat}</strong><span>إعادة</span></div>
-          {liveDay.targetJuz > 0 && <div className="live-stat"><strong>{liveDay.targetJuz}</strong><span>المستهدف (جزء)</span></div>}
-          {liveDay.targetJuz > 0 && <div className="live-stat"><strong>{liveDay.juzAchieved.toFixed(2)}</strong><span>المنجز (جزء)</span></div>}
-        </div>
-        {liveDay.targetJuz > 0 && (
-          <div className="live-day-progress">
-            <div className="progress-info"><span>نسبة إنجاز المستهدف العام</span><span>{achievementPct.toFixed(0)}%</span></div>
-            <div className="progress-track"><span style={{ width: `${achievementPct}%` }} /></div>
-            <div className="progress-info" style={{ marginTop: '6px' }}><span>المتبقي: {(liveDay.targetJuz - liveDay.juzAchieved).toFixed(1)} جزء</span><span>{liveDay.juzAchieved.toFixed(1)} / {liveDay.targetJuz}</span></div>
-          </div>
-        )}
-      </section>
-    )}
-
-    <section className="admin-quick-grid">
-      <QuickAction icon={<UserPlus size={20} />} label="إضافة طالب" onClick={() => setView('students')} />
-      <QuickAction icon={<ShieldCheck size={20} />} label="إضافة معلم" onClick={() => setView('users')} />
-      <QuickAction icon={<CalendarDays size={20} />} label="إدارة أيام السرد" onClick={() => setView('sessions')} />
-      <QuickAction icon={<BarChart3 size={20} />} label={`المراجعات المطلوبة (${stats.revisions})`} onClick={() => setView('reports')} />
+    <section className="admin-performance-grid">
+      <div className="panel-card admin-chart-card"><div className="panel-heading"><div><h2>تطور نسبة الإنجاز</h2><p>محسوبة من حالات التسميع المؤكدة</p></div><TrendingUp size={21} color="#0b7c80" /></div>
+        {performance.length > 0 ? <PerformanceChart points={performance} /> : <div className="empty-state">ستظهر حركة الإنجاز بعد حفظ التسميع.</div>}
+      </div>
+      <div className="panel-card completion-card"><div className="panel-heading"><div><h2>أداء الطلاب</h2><p>ملخص السجلات الفعلية</p></div><BarChart3 size={21} color="#0b7c80" /></div>
+        <div className="completion-ring" style={{ '--completion': `${overallPct}%` } as React.CSSProperties}><strong>{overallPct}%</strong><span>نسبة الإنجاز</span></div>
+        <div className="completion-legend"><div><i className="legend-done" /><strong>{completedStudents}</strong><span>أتموا التسميع</span></div><div><i className="legend-pending" /><strong>{incompleteStudents}</strong><span>لم يتموا بعد</span></div></div>
+      </div>
     </section>
-    <section className="content-grid"><RecentSessions setNotice={setNotice} /><RecentAudit /></section>
+    <section className="panel-card admin-student-performance"><div className="panel-heading"><div><h2>أداء الطلاب التفصيلي</h2><p>آخر عمليات التسميع المؤكدة والمسجلة</p></div><button className="text-button" onClick={() => setView('reports')}>عرض السجل الكامل <ChevronLeft size={16} /></button></div>
+      <div className="admin-data-table"><div className="admin-table-head"><span>الطالب</span><span>السورة</span><span>الترددات</span><span>الأخطاء</span><span>الحالة</span><span>الوقت</span></div>
+        {entries.slice(0, 8).map((entry) => <div className="admin-table-row" key={entry.id}><strong>{entry.students?.name ?? '—'}</strong><span>{entry.quran_surahs?.name ?? '—'}</span><span>{entry.hesitations}</span><span>{entry.mistakes}</span><span className={`table-status ${entry.status}`}>{entry.status === 'done' ? 'تم التسميع' : entry.status === 'repeat' ? 'يحتاج إعادة' : 'غير جاهز'}</span><time>{new Date(entry.created_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</time></div>)}
+        {entries.length === 0 && <div className="empty-state">{loading ? 'جارٍ تحميل البيانات...' : 'لا توجد سجلات تسميع بعد.'}</div>}
+      </div>
+    </section>
+    <section className="panel-card admin-sessions-table"><div className="panel-heading"><div><h2>أيام السرد</h2><p>عدد الطلاب ونسبة الإنجاز لكل يوم</p></div><button className="text-button" onClick={() => setView('sessions')}>إدارة الأيام <ChevronLeft size={16} /></button></div>
+      <div className="admin-data-table"><div className="admin-table-head session-overview-head"><span>التاريخ</span><span>عدد الطلاب</span><span>نسبة الإنجاز</span><span>الحالة</span><span>الإجراءات</span></div>
+        {sessions.slice(0, 6).map((session) => <div className="admin-table-row session-overview-row" key={session.id}><strong>{new Date(session.session_date).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short', year: 'numeric' })}</strong><span>{session.assignmentCount}</span><div className="table-progress"><i style={{ width: `${session.completionPct}%` }} /><span>{session.completionPct.toFixed(0)}%</span></div><span className={`table-status ${session.status}`}>{statusLabels[session.status]}</span><button className="small-action" onClick={() => setView('sessions')}>عرض التفاصيل</button></div>)}
+        {sessions.length === 0 && <div className="empty-state">لا توجد أيام سرد مسجلة.</div>}
+      </div>
+    </section>
   </>;
+}
+
+function PerformanceChart({ points }: { points: { label: string; value: number }[] }) {
+  const width = 620;
+  const height = 210;
+  const max = Math.max(100, ...points.map((point) => point.value));
+  const coordinates = points.map((point, index) => ({ x: points.length === 1 ? width / 2 : 30 + (index * (width - 60)) / (points.length - 1), y: height - 24 - ((point.value / max) * (height - 55)) }));
+  const line = coordinates.map((point) => `${point.x},${point.y}`).join(' ');
+  return <div className="performance-chart"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="مخطط تطور الإنجاز"><defs><linearGradient id="performance-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#0b7c80" stopOpacity=".25" /><stop offset="1" stopColor="#0b7c80" stopOpacity="0" /></linearGradient></defs><path d={`M ${coordinates[0].x} ${height - 24} L ${line} L ${coordinates[coordinates.length - 1].x} ${height - 24} Z`} fill="url(#performance-fill)" /><polyline points={line} fill="none" stroke="#0b7c80" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />{coordinates.map((point) => <circle key={`${point.x}-${point.y}`} cx={point.x} cy={point.y} r="5" fill="#fff" stroke="#0b7c80" strokeWidth="3" />)}</svg><div className="chart-labels">{points.map((point) => <span key={point.label}>{point.label}<strong>{point.value.toFixed(0)}%</strong></span>)}</div></div>;
 }
 
 function Stat({ label, value, icon, tone }: { label: string; value: number; icon: React.ReactNode; tone: string }) {
@@ -845,6 +849,10 @@ function SessionsManager({ setNotice }: { setNotice: (n: Notice) => void }) {
   useEffect(() => { void load(); }, []);
   const add = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (date && new Date(`${date}T00:00:00`).getDay() === 6) {
+      setNotice({ type: 'error', text: 'لا يمكن جدولة يوم السرد يوم السبت.' });
+      return;
+    }
     const { data, error } = await supabase.rpc('admin_create_session_full', {
       p_name: name, p_date: date, p_start: start, p_end: end,
       p_target_juz: parseFloat(targetJuz) || 0,
@@ -866,7 +874,7 @@ function SessionsManager({ setNotice }: { setNotice: (n: Notice) => void }) {
     <PageHeading eyebrow="إدارة الأيام" title="أيام السرد" subtitle="أنشئ الأيام وافتحها للمعلمين وأغلقها عند انتهاء التسميع." action={<button className="primary-button" onClick={() => setShowForm(true)}><Plus size={18} /> إنشاء يوم همة</button>} />
     {showForm && <InlineForm title="إنشاء يوم سرد" onSubmit={add} onCancel={() => setShowForm(false)}>
       <label>اسم اليوم<input value={name} onChange={(e) => setName(e.target.value)} placeholder="مثال: يوم السرد الأسبوعي" required /></label>
-      <div className="form-grid"><label>التاريخ<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label><label>وقت البداية<input type="time" value={start} onChange={(e) => setStart(e.target.value)} required /></label><label>وقت النهاية<input type="time" value={end} onChange={(e) => setEnd(e.target.value)} required /></label></div>
+      <div className="form-grid"><label>التاريخ<input type="date" value={date} onChange={(e) => { const value = e.target.value; if (value && new Date(`${value}T00:00:00`).getDay() === 6) { setDate(''); setNotice({ type: 'error', text: 'يوم السبت غير متاح للجدولة.' }); return; } setDate(value); }} required /></label><label>وقت البداية<input type="time" value={start} onChange={(e) => setStart(e.target.value)} required /></label><label>وقت النهاية<input type="time" value={end} onChange={(e) => setEnd(e.target.value)} required /></label></div>
       <div className="form-grid"><label>المستهدف العام من أجزاء الطلاب<input type="number" min="0" step="0.01" value={targetJuz} onChange={(e) => setTargetJuz(e.target.value)} placeholder="يُحسب من مجموع مقررات الطلاب" /></label><label>عدد الحلقات<input type="number" value={numHalqat} onChange={(e) => setNumHalqat(e.target.value)} placeholder="عدد الحلقات" /></label></div>
       <label>ملاحظات<input value={dayNotes} onChange={(e) => setDayNotes(e.target.value)} placeholder="ملاحظات إضافية" /></label>
     </InlineForm>}

@@ -380,46 +380,37 @@ h1 em { font-style: normal; color: #024f63; }
 }
 
 
-/* ── Mushaf Reader ── */
-.mushaf-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(10, 35, 40, .55); backdrop-filter: blur(4px); display: flex; align-items: stretch; justify-content: center; padding: 0; }
-.mushaf-shell { background: #fdf9f0; width: min(860px, 100%); height: 100%; display: flex; flex-direction: column; box-shadow: 0 0 50px rgba(0, 0, 0, .35); overflow: hidden; }
-.mushaf-topbar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #024f63; color: #fff; }
-.mushaf-title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
-.mushaf-student-chip { background: rgba(255, 255, 255, .15); border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 500; }
-.mushaf-meta { margin-inline-start: auto; display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: .92; }
-.mushaf-close { background: rgba(255, 255, 255, .12); border: 0; color: #fff; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: grid; place-items: center; }
-.mushaf-close:hover { background: rgba(255, 255, 255, .25); }
-.mushaf-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; background: #f3edde; border-bottom: 1px solid #e5dcc4; }
-.mushaf-nav { display: inline-flex; align-items: center; gap: 4px; background: #fff; border: 1px solid #d8ceb4; color: #024f63; border-radius: 9px; padding: 7px 14px; font-size: 13px; cursor: pointer; font-family: inherit; }
-.mushaf-nav:hover:not(:disabled) { background: #eaf3f2; }
-.mushaf-nav:disabled { opacity: .4; cursor: default; }
-.mushaf-jump { display: flex; align-items: center; gap: 6px; }
-.mushaf-jump input { width: 90px; padding: 7px 10px; border: 1px solid #d8ceb4; border-radius: 9px; font-size: 13px; text-align: center; font-family: inherit; background: #fff; }
-.mushaf-jump button { background: #024f63; color: #fff; border: 0; border-radius: 9px; padding: 7px 14px; font-size: 13px; cursor: pointer; font-family: inherit; }
-.mushaf-bounds-note { text-align: center; font-size: 12px; color: #7c6f4e; background: #f7f2e4; padding: 6px 12px; border-bottom: 1px solid #e5dcc4; }
-.mushaf-page-area { flex: 1; overflow-y: auto; display: flex; justify-content: center; padding: 26px 14px 40px; }
-.mushaf-loading, .mushaf-error { display: flex; flex-direction: column; align-items: center; gap: 10px; color: #024f63; margin-top: 40vh; font-size: 14px; }
-.mushaf-error { color: #b0432e; }
-.mushaf-page { direction: rtl; width: 100%; max-width: 660px; line-height: 2.15; color: #3b2f16; }
-.mushaf-line { display: block; text-align: center; white-space: nowrap; overflow: visible; }
-.mushaf-line.surah-header { color: #024f63; font-size: 1.25em; line-height: 1.6; margin: 8px 0 4px; }
-.mushaf-line.basmala { font-size: 1em; margin: 6px 0; }
-.mushaf-line.text-line { justify-content: center; }
-.mushaf-word { display: inline; }
-.spin { animation: mushaf-spin 1s linear infinite; }
-@keyframes mushaf-spin { to { transform: rotate(360deg); } }
-
-@media (max-width: 640px) {
-  .mushaf-shell { width: 100%; }
-  .mushaf-topbar { padding: 10px 12px; flex-wrap: wrap; }
-  .mushaf-meta { font-size: 11px; gap: 4px; }
-  .mushaf-toolbar { padding: 8px 10px; }
-  .mushaf-nav { padding: 6px 10px; font-size: 12px; }
-  .mushaf-jump input { width: 70px; }
-  .mushaf-page-area { padding: 16px 6px 30px; }
-}
-
 .recitation-notes-label { display: grid; gap: 7px; color: #53676b; font-size: 11px; }
 .recitation-notes-label textarea { width: 100%; resize: vertical; min-height: 76px; border: 1px solid #dfe8e5; border-radius: 10px; padding: 10px 12px; background: #fbfdfc; color: #2e464a; font: inherit; font-size: 12px; line-height: 1.7; }
 .recitation-notes-label textarea:focus { outline: 2px solid rgba(2, 79, 99, .14); border-color: #024f63; }
 .saved-entry-notes { grid-column: 1 / -1; color: #718087; font-size: 10px; line-height: 1.6; }
+
+/* ── Refined dashboard and teacher workspace ── */
+.admin-welcome-row { margin-bottom: 24px; }
+.admin-stats-grid { grid-template-columns: repeat(4, 1fr); }
+.admin-performance-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, .8fr); gap: 16px; margin-bottom: 16px; }
+.admin-chart-card, .completion-card, .admin-student-performance, .admin-sessions-table { box-shadow: 0 8px 26px rgba(2, 79, 99, .045); }
+.performance-chart { min-height: 230px; padding: 8px 4px 0; }
+.performance-chart svg { width: 100%; height: 190px; display: block; overflow: visible; }
+.chart-labels { display: flex; justify-content: space-between; gap: 10px; color: #8a9a9b; font-size: 10px; }
+.chart-labels span { display: grid; gap: 4px; text-align: center; }
+.chart-labels strong { color: #0b7c80; font-size: 11px; }
+.completion-card { display: flex; flex-direction: column; }
+.completion-ring { width: 166px; height: 166px; margin: 8px auto 18px; border-radius: 50%; background: conic-gradient(#0b7c80 var(--completion), #e5efed 0); display: grid; place-items: center; position: relative; }
+.completion-ring::after { content: ''; position: absolute; inset: 12px; background: #fff; border-radius: 50%; }
+.completion-ring strong, .completion-ring span { position: relative; z-index: 1; display: block; text-align: center; }
+.completion-ring strong { font-size: 29px; color: #24464d; line-height: 1; }
+.completion-ring span { color: #8a9a9b; font-size: 10px; margin-top: 4px; }
+.completion-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto; }
+.completion-legend div { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 7px; background: #f6f9f8; border-radius: 10px; padding: 9px; }
+.completion-legend i { width: 8px; height: 8px; border-radius: 50%; grid-row: span 2; }.legend-done { background: #0b7c80; }.legend-pending { background: #d3a45d; }
+.completion-legend strong { color: #28474d; font-size: 16px; }.completion-legend span { color: #8b999a; font-size: 9px; }
+.admin-data-table { overflow-x: auto; }
+.admin-table-head, .admin-table-row { min-width: 680px; display: grid; grid-template-columns: 1.25fr 1fr .7fr .7fr 1fr .8fr; align-items: center; gap: 14px; padding: 13px 17px; }
+.admin-table-head { background: #f4f8f7; color: #829496; font-size: 10px; }.admin-table-row { border-top: 1px solid #edf2f0; color: #65797c; font-size: 11px; min-height: 53px; }.admin-table-row strong { color: #29494f; font-weight: 700; }.admin-table-row time { color: #8a9a9b; font-size: 10px; }.table-status { width: fit-content; border-radius: 999px; padding: 5px 9px; font-size: 9px; white-space: nowrap; }.table-status.done, .table-status.open { background: #e4f5ed; color: #36856e; }.table-status.repeat { background: #fff0df; color: #b27930; }.table-status.not_ready, .table-status.scheduled { background: #eef3f2; color: #718487; }.table-status.closed { background: #e3f0f6; color: #39788b; }
+.admin-student-performance, .admin-sessions-table { padding-bottom: 0; margin-bottom: 16px; }.admin-student-performance .panel-heading, .admin-sessions-table .panel-heading { padding: 0 0 3px; }.session-overview-head, .session-overview-row { grid-template-columns: 1.3fr 1fr 1.3fr 1fr 1.1fr; }.table-progress { display: flex; align-items: center; gap: 8px; min-width: 120px; }.table-progress i { display: block; height: 7px; width: 70px; background: #0b7c80; border-radius: 20px; position: relative; }.table-progress i::before { content: ''; position: absolute; inset: 0; width: 100%; background: #dcebea; transform: translateX(100%); z-index: -1; border-radius: 20px; }.table-progress span { color: #0b7c80; font-size: 10px; }
+.teacher-mobile-header { display: flex; align-items: end; justify-content: space-between; margin-bottom: 20px; }.teacher-mobile-header p { color: #7e8b8e; font-size: 12px; margin-top: 7px; }.teacher-recitation-shell { border-top: 3px solid #0b7c80; }.teacher-current-student { display: flex; align-items: center; gap: 11px; background: #f1f8f6; border: 1px solid #dcece7; border-radius: 14px; padding: 12px 14px; margin-bottom: 17px; }.teacher-current-avatar { width: 43px; height: 43px; border-radius: 13px; display: grid; place-items: center; color: #fff; background: #0b7c80; font-size: 18px; font-weight: 700; }.teacher-current-student div:nth-child(2) { flex: 1; }.teacher-current-student span, .teacher-current-student small { display: block; color: #789093; font-size: 9px; }.teacher-current-student strong { display: block; color: #24464d; font-size: 15px; margin: 3px 0; }.teacher-student-count { background: #fff; color: #0b7c80 !important; border-radius: 999px; padding: 6px 8px; }
+.confirm-recitation-button { min-height: 56px; width: 100%; border: 0; border-radius: 12px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; background: #159b75; color: #fff; font-size: 15px; font-weight: 700; box-shadow: 0 8px 20px rgba(21, 155, 117, .18); transition: .2s; }.confirm-recitation-button:hover { background: #0c815f; transform: translateY(-1px); }.confirm-recitation-button:disabled { opacity: .55; transform: none; cursor: not-allowed; }.confirmation-hint { color: #8a999a; text-align: center; font-size: 10px; line-height: 1.7; }.status-btn.selected { outline: 3px solid rgba(11, 124, 128, .17); outline-offset: 2px; }
+.next-surah-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #e5eeeb; border-radius: 12px; padding: 12px 14px; background: #fbfdfc; }.next-surah-card span { color: #8c9b9c; font-size: 10px; }.next-surah-card strong { color: #0b7c80; font-size: 14px; }.needs-rework-card { background: #fff7ec; border: 1px solid #f3dfc2; border-radius: 12px; padding: 13px; }.needs-rework-card h3 { color: #9c6c2b; font-size: 12px; margin: 0 0 8px; }.needs-rework-card div { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid #f2e6d4; padding: 8px 0 0; margin-top: 8px; font-size: 10px; }.needs-rework-card strong { color: #755a35; }.needs-rework-card span { color: #a17e4c; }
+@media (max-width: 800px) { .admin-performance-grid { grid-template-columns: 1fr; }.admin-stats-grid { grid-template-columns: repeat(2, 1fr); }.teacher-mobile-header { align-items: stretch; }.teacher-mobile-header .secondary-button { margin-top: 8px; }.teacher-recitation-shell { padding: 13px; } }
+@media (max-width: 520px) { .admin-stats-grid { gap: 8px; }.admin-table-head, .admin-table-row { gap: 9px; padding-left: 12px; padding-right: 12px; }.completion-ring { width: 145px; height: 145px; }.teacher-mobile-header { display: block; }.teacher-mobile-header .secondary-button { width: 100%; justify-content: center; margin-top: 14px; }.teacher-current-student { align-items: flex-start; }.teacher-student-count { margin-right: auto; }.counter-body button { width: 44px; height: 44px; } }

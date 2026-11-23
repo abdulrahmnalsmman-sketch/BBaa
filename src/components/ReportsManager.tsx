@@ -12,7 +12,7 @@ import {
 
 type Notice = { type: 'success' | 'error'; text: string } | null;
 
-type ReportType = 'day' | 'student' | 'surah' | 'halqa';
+type ReportType = 'day' | 'student' | 'surah';
 
 type StatCard = {
   label: string;
@@ -463,7 +463,6 @@ export function ReportsManager({ setNotice }: { setNotice: (n: Notice) => void }
         <button className={reportType === 'day' ? 'active' : ''} onClick={() => setReportType('day')}>التقرير العام</button>
         <button className={reportType === 'student' ? 'active' : ''} onClick={() => setReportType('student')}>تقرير الطلاب</button>
         <button className={reportType === 'surah' ? 'active' : ''} onClick={() => setReportType('surah')}>تقرير السور</button>
-        <button className={reportType === 'halqa' ? 'active' : ''} onClick={() => setReportType('halqa')}>تقرير الحلقات والمعلمين</button>
       </div>
 
       {/* Report content */}
@@ -596,34 +595,6 @@ export function ReportsManager({ setNotice }: { setNotice: (n: Notice) => void }
         </div>
       )}
 
-      {reportType === 'halqa' && (
-        <div className="reports-table-wrap">
-          <div className="reports-table-head">
-            <span>المعلم</span><span>الطلاب</span><span>إجمالي</span><span>تم</span><span>إعادة</span>
-            <span>غير جاهز</span><span>الأوجه المسمّعة</span><span>الأوجه المكتملة</span>
-            <span>الأخطاء</span><span>الترددات</span><span>الإنجاز</span>
-          </div>
-          {teacherStats.map((t) => {
-            const pct = t.total > 0 ? (t.done / t.total) * 100 : 0;
-            return (
-              <div key={t.name} className="reports-table-row">
-                <strong>{t.name}</strong>
-                <span>{t.studentCount}</span>
-                <span>{t.total}</span>
-                <span>{t.done}</span>
-                <span>{t.repeat}</span>
-                <span>{t.notReady}</span>
-                <span>{t.facesRecited > 0 ? formatFaceValue(t.facesRecited) : '—'}</span>
-                <span>{t.facesCompleted > 0 ? t.facesCompleted : '—'}</span>
-                <span>{t.mistakes}</span>
-                <span>{t.hesitations}</span>
-                <span className="reports-pct">{pct.toFixed(0)}%</span>
-              </div>
-            );
-          })}
-          {teacherStats.length === 0 && <div className="reports-empty">{loading ? 'جارٍ التحميل...' : 'لا توجد بيانات.'}</div>}
-        </div>
-      )}
     </div>
   );
 }
